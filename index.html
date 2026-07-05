@@ -255,8 +255,10 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
         <div><label>משך (דקות)</label><input type="number" id="f_dur" inputmode="numeric" min="1" step="5" placeholder="60"></div>
         <div><label>סוג שירות</label><select id="f_type"></select></div>
       </div>
-      <label>עם מי? (שם המתאמן/ת)</label>
-      <input id="f_client" placeholder="שם חופשי">
+      <div id="clientWrap">
+        <label>עם מי? (שם המתאמן/ת)</label>
+        <input id="f_client" placeholder="שם חופשי">
+      </div>
       <label>הערה (לא חובה)</label>
       <textarea id="f_note" placeholder="למשל: מפגש ראשון, התקדמות, וכו׳"></textarea>
       <button class="btn" id="saveBtn" onclick="saveSession()">שלח רישום ✓</button>
@@ -368,8 +370,10 @@ const BASE = DB + "/bux-services";            // הענף של האפליקצי�
 const MANAGER_PIN = "1357";                    // קוד מנהל — אפשר לשנות כאן
 
 // סוגי שירות (מותאם לתפריט)
-const SERVICE_TYPES = ["יוגה","אימון אישי","ייעוץ תזונה","ספורטתרפיה"];
-const TYPE_COLORS = {"יוגה":"#2c6b3d","אימון אישי":"#1E4D2B","ייעוץ תזונה":"#b58900","ספורטתרפיה":"#8e44ad"};
+const SERVICE_TYPES = ["יוגה","אימון אישי","ייעוץ תזונה","ספורטתרפיה","עבודות משרד"];
+const TYPE_COLORS = {"יוגה":"#2c6b3d","אימון אישי":"#c0392b","ייעוץ תזונה":"#b58900","ספורטתרפיה":"#2980b9","עבודות משרד":"#8e44ad"};
+// סוגי שירות שאין בהם "עם מי" (מתאמן/ת) — עבודה עצמאית במשרד
+const NO_CLIENT_TYPES = ["עבודות משרד"];
 
 /* =====================================================================
    חישוב תשלום — נשאיר ריק בשלב זה.
@@ -513,13 +517,23 @@ function buildNav(){
   $("#navInner").innerHTML = items.map(k=>
     `<button data-tab="${k}" onclick="showTab('${k}')"><span class="ic">${TABS[k].ic}</span>${TABS[k].label}</button>`).join("");
 }
+let CURTAB=null;
 function showTab(name){
+  CURTAB=name;
   ["providerView","managerView","calendarView"].forEach(s=>$("#"+s).classList.add("hidden"));
   $("#"+TABS[name].sec).classList.remove("hidden");
   [...document.querySelectorAll("#navInner button")].forEach(b=>b.classList.toggle("on",b.dataset.tab===name));
-  if(name==="calendar"){ loadBookings().then(renderCalendar); }
+  // הלוח מציג גם תפיסות ידניות וגם מפגשים שנרשמו — טוענים את שניהם רענן
+  if(name==="calendar"){ Promise.all([loadBookings(),loadSessions()]).then(renderCalendar); }
   if(name==="summary"){ refreshManager(); }
+  if(name==="log"){ renderMyList(); }
   window.scrollTo(0,0);
+}
+// רענון הטאב הפעיל אחרי עריכה/מחיקה (משפיע גם על הלוח וגם על הרישום)
+function refreshActive(){
+  if(CURTAB==="calendar") renderCalendar();
+  else if(CURTAB==="summary") refreshManager();
+  else renderMyList();
 }
 
 /* =====================================================================
@@ -529,17 +543,26 @@ function initProviderForm(){
   $("#f_date").value=todayStr();
   $("#f_time").value=nowTime();
   $("#f_type").innerHTML=SERVICE_TYPES.map(t=>`<option>${t}</option>`).join("");
-  // ברירת מחדל: סוג השירות לפי התפקיד אם מתאים
+  // ברירת מחדל: סוג השירות לפי התפקיד אם מתאים (כולל "עבודות משרד" לעובדי משרד)
   if(SERVICE_TYPES.includes(AUTH.role)) $("#f_type").value=AUTH.role;
+  else if(AUTH.role && AUTH.role.indexOf("משרד")>-1) $("#f_type").value="עבודות משרד";
+  $("#f_type").onchange=toggleClientField;
+  toggleClientField();
+}
+// מסתיר את שדה "עם מי" בסוגי שירות שאין בהם מתאמן (עבודות משרד)
+function toggleClientField(){
+  const hide=NO_CLIENT_TYPES.includes($("#f_type").value);
+  $("#clientWrap").style.display=hide?"none":"block";
 }
 async function saveSession(){
   const date=$("#f_date").value, time=$("#f_time").value;
   const dur=parseInt($("#f_dur").value,10);
   const type=$("#f_type").value, client=$("#f_client").value.trim(), note=$("#f_note").value.trim();
+  const noClient=NO_CLIENT_TYPES.includes(type);
   if(!date){toast("חסר תאריך");return;}
   if(!time){toast("חסרה שעת התחלה");return;}
   if(!dur||dur<=0){toast("הכנס/י משך בדקות");return;}
-  if(!client){toast("כתוב/י עם מי היה המפגש");return;}
+  if(!client && !noClient){toast("כתוב/י עם מי היה המפגש");return;}
   const btn=$("#saveBtn");btn.disabled=true;btn.textContent="שומר...";
   const obj={provider_id:AUTH.id,date,start_time:time,duration_minutes:dur,
     service_type:type,client_name:client,note,created_at:new Date().toISOString()};
@@ -594,13 +617,13 @@ async function editSession(k){
   await updateSession(k,{date,start_time:time,duration_minutes:parseInt(dur,10)||s.duration_minutes,
     service_type:type.trim()||s.service_type,client_name:client.trim(),note:note.trim()});
   toast("עודכן ✓");
-  AUTH.kind==="manager"?refreshManager():renderMyList();
+  refreshActive();
 }
 async function removeSession(k){
   if(!confirm("למחוק את המפגש? אי אפשר לשחזר."))return;
   await deleteSession(k);
   toast("נמחק");
-  AUTH.kind==="manager"?refreshManager():renderMyList();
+  refreshActive();
 }
 
 /* =====================================================================
@@ -717,12 +740,24 @@ function weekShift(n){CAL_WEEK=addDays(CAL_WEEK,7*n);CAL_SEL=dISO(CAL_WEEK);rend
 function weekToday(){CAL_WEEK=startOfWeek(new Date());CAL_SEL=dISO(new Date());renderCalendar();}
 function selectDay(iso){CAL_SEL=iso;renderCalendar();}
 
-function bookingsForDate(iso){
+function m2t(m){return pad(Math.floor(m/60))+":"+pad(m%60);}
+// כל מה שתופס את המשרד ביום מסוים: תפיסות ידניות (לוח) + מפגשים שנרשמו (רישום)
+function slotsForDate(iso){
   const wd=new Date(iso+"T00:00").getDay();
-  return Object.entries(BOOKINGS).map(([k,b])=>Object.assign({_k:k},b)).filter(b=>{
-    if(b.kind==="weekly")return b.weekday===wd;
-    return b.date===iso;
-  }).sort((a,b)=>a.start.localeCompare(b.start));
+  const out=[];
+  Object.entries(BOOKINGS).forEach(([k,b])=>{
+    if((b.kind==="weekly"&&b.weekday===wd)||(b.kind!=="weekly"&&b.date===iso))
+      out.push(Object.assign({_k:k,_src:"booking"},b));
+  });
+  Object.entries(SESSIONS).forEach(([k,s])=>{
+    if(s.date===iso && s.start_time){
+      out.push({_k:k,_src:"session",provider_id:s.provider_id,kind:"once",
+        start:s.start_time, end:m2t(t2m(s.start_time)+Number(s.duration_minutes||0)),
+        service_type:s.service_type,
+        note:(s.service_type||"")+(s.client_name?" · "+s.client_name:"")});
+    }
+  });
+  return out.sort((a,b)=>a.start.localeCompare(b.start));
 }
 function markConflicts(list){
   list.forEach(x=>x._conflict=false);
@@ -739,7 +774,7 @@ function renderCalendar(){
   const todayIso=dISO(new Date());
   let strip="";
   for(let i=0;i<7;i++){
-    const d=addDays(CAL_WEEK,i),iso=dISO(d),cnt=bookingsForDate(iso).length;
+    const d=addDays(CAL_WEEK,i),iso=dISO(d),cnt=slotsForDate(iso).length;
     strip+=`<button class="${iso===CAL_SEL?'sel':''} ${iso===todayIso?'tdy':''}" onclick="selectDay('${iso}')">
       ${cnt?`<span class="cnt">${cnt}</span>`:''}
       <span class="dn">${HE_DAYS_S[i]}</span><span class="dd">${d.getDate()}/${d.getMonth()+1}</span></button>`;
@@ -748,23 +783,29 @@ function renderCalendar(){
   renderDayBookings();
 }
 function renderDayBookings(){
-  const list=markConflicts(bookingsForDate(CAL_SEL));
+  const list=markConflicts(slotsForDate(CAL_SEL));
   const wrap=$("#dayBookings");
   if(!list.length){wrap.innerHTML=`<div class="freeday">אין תפיסות ביום זה — המשרד פנוי ✅</div>`;return;}
   wrap.innerHTML=list.map(b=>{
     const p=PROVIDERS[b.provider_id]||{name:"(לא ידוע)",color:"#1E4D2B"};
     const col=p.color||"#1E4D2B";
     const canEdit=AUTH.kind==="manager"||b.provider_id===AUTH.id;
+    const isSession=b._src==="session";
+    const tag=isSession
+      ? `<span class="rep" style="background:#eaf3ea;color:#1E4D2B">📝 מפגש</span>`
+      : (b.kind==="weekly"?`<span class="rep">↻ כל שבוע</span>`:`<span class="rep" style="background:#fff4d6;color:#8a6d00">🗓️ תפיסה</span>`);
+    const editCall=isSession?`editSession('${b._k}')`:`openBooking('${b._k}')`;
+    const delCall =isSession?`removeSession('${b._k}')`:`quickDelBooking('${b._k}')`;
     return `<div class="bk ${b._conflict?'conflict':''}" style="border-right-color:${col}">
       <div class="bt">
         <span class="time">${b.start}–${b.end}</span>
         <span class="nm" style="color:${col}">${esc(p.name)}</span>
-        ${b.kind==="weekly"?`<span class="rep">↻ כל שבוע</span>`:''}
+        ${tag}
         ${b._conflict?`<span class="warn">⚠️ חפיפה</span>`:''}
       </div>
       ${b.note?`<div class="bnote">${esc(b.note)}</div>`:''}
-      ${canEdit?`<div class="acts"><button class="tinybtn" onclick="openBooking('${b._k}')">✏️ עריכה</button>
-        <button class="tinybtn del" onclick="quickDelBooking('${b._k}')">🗑 מחיקה</button></div>`:''}
+      ${canEdit?`<div class="acts"><button class="tinybtn" onclick="${editCall}">✏️ עריכה</button>
+        <button class="tinybtn del" onclick="${delCall}">🗑 מחיקה</button></div>`:''}
     </div>`;
   }).join("");
 }
