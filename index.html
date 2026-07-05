@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E4D2B">
+<title>BUX שירותים 🦌</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+
+<!-- =====================================================================
+     BUX שירותים — רישום מפגשים אישיים במועדון קרוספיט BUX
+     כלי אחד: כל נותן/ת שירות מדווח/ת מפגש אחרי כל אימון; המנהל רואה הכל.
+     הנתונים נשמרים בענן (Firebase) ומשותפים בין כולם.
+     — כדי לשנות מיתוג/צבעים: ראו :root ב-CSS למטה.
+     — כדי לשנות קוד מנהל: MANAGER_PIN למטה.
+     — נותני השירות והקודים האישיים נשמרים בענן (טבלת providers).
+====================================================================== -->
+
+<style>
+:root{
+  --green:#1E4D2B;      /* ירוק יער ראשי */
+  --green-2:#2c6b3d;
+  --green-d:#143a1f;
+  --yellow:#FFD400;     /* צהוב משני */
+  --ink:#12261a;
+  --paper:#f3f6f2;
+  --card:#ffffff;
+  --muted:#6a7d70;
+  --line:#e2e9e2;
+  --danger:#c0392b;
+  --shadow:0 6px 24px rgba(20,58,31,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Heebo',system-ui,Arial,sans-serif;
+  background:var(--paper);color:var(--ink);
+  min-height:100vh;line-height:1.45;
+}
+.wrap{max-width:640px;margin:0 auto;padding:0 14px 90px}
+.hidden{display:none!important}
+
+/* ---- Header ---- */
+header.topbar{
+  position:sticky;top:0;z-index:20;
+  background:linear-gradient(135deg,var(--green) 0%,var(--green-d) 100%);
+  color:#fff;padding:14px 16px;
+  box-shadow:var(--shadow);
+  border-bottom:3px solid var(--yellow);
+}
+header.topbar .row{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.brand{font-weight:900;font-size:22px;letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.brand small{font-weight:600;font-size:12px;opacity:.85;background:rgba(255,212,0,.18);
+  color:var(--yellow);padding:2px 8px;border-radius:20px}
+.spacer{flex:1}
+.whoami{font-size:13px;font-weight:600;opacity:.95;text-align:left;line-height:1.2}
+.whoami b{display:block;font-size:15px}
+.linkbtn{background:rgba(255,255,255,.14);border:none;color:#fff;font-family:inherit;
+  font-weight:700;font-size:13px;padding:7px 12px;border-radius:10px;cursor:pointer}
+.linkbtn:active{transform:scale(.96)}
+
+/* ---- Cards / inputs ---- */
+.card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);
+  padding:18px;margin-top:16px;border:1px solid var(--line)}
+h2{margin:0 0 12px;font-size:19px;font-weight:800;color:var(--green)}
+h3{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--green)}
+label{display:block;font-weight:700;font-size:14px;margin:12px 0 5px;color:var(--ink)}
+input,select,textarea{
+  width:100%;font-family:inherit;font-size:16px;padding:13px 14px;
+  border:1.5px solid var(--line);border-radius:12px;background:#fbfdfb;color:var(--ink);
+  transition:border-color .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-2);background:#fff}
+textarea{min-height:64px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ---- Buttons ---- */
+.btn{width:100%;border:none;font-family:inherit;font-weight:900;font-size:18px;
+  padding:16px;border-radius:14px;cursor:pointer;margin-top:18px;
+  background:var(--green);color:#fff;box-shadow:0 4px 14px rgba(30,77,43,.35);
+  transition:transform .1s,filter .15s}
+.btn:active{transform:scale(.98)}
+.btn.gold{background:var(--yellow);color:var(--green-d);box-shadow:0 4px 14px rgba(255,212,0,.4)}
+.btn.ghost{background:#fff;color:var(--green);border:1.5px solid var(--green);box-shadow:none;
+  font-size:15px;padding:12px}
+.btn.sm{font-size:14px;padding:9px 12px;margin:0;width:auto;border-radius:10px}
+
+/* ---- Toast ---- */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(30px);
+  background:var(--green);color:#fff;padding:13px 22px;border-radius:30px;font-weight:800;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.3s;z-index:60;
+  border:2px solid var(--yellow);max-width:90%;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- Session list ---- */
+.slist{margin-top:6px}
+.sitem{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  margin-top:10px;box-shadow:0 2px 8px rgba(20,58,31,.05)}
+.sitem .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;color:#fff}
+.sitem .when{font-weight:800;font-size:15px}
+.sitem .sub{color:var(--muted);font-size:13px;margin-top:3px}
+.sitem .note{font-size:13px;margin-top:6px;background:#f6f9f5;border-radius:8px;padding:6px 9px;color:#3c4d42}
+.sitem .acts{display:flex;gap:8px;margin-top:10px}
+.tinybtn{background:#f1f4f0;border:1px solid var(--line);border-radius:9px;padding:6px 12px;
+  font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:var(--ink)}
+.tinybtn.del{color:var(--danger);border-color:#f0d3ce;background:#fdf3f1}
+.empty{text-align:center;color:var(--muted);padding:26px 10px;font-weight:600}
+
+/* ---- Manager table ---- */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:420px}
+th,td{padding:11px 9px;text-align:right;border-bottom:1px solid var(--line)}
+th{background:var(--green);color:#fff;font-weight:800;font-size:13px;position:sticky;top:0}
+tr.prow{cursor:pointer}
+tr.prow:active{background:#f2f7f1}
+td .mini{color:var(--muted);font-size:12px}
+tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
+.chip{display:inline-block;background:#eef4ec;color:var(--green);border-radius:8px;
+  padding:1px 7px;font-size:11px;font-weight:800;margin:1px 2px}
+
+/* ---- Login ---- */
+.login-hero{text-align:center;padding:34px 10px 6px}
+.login-hero .deer{font-size:56px;line-height:1}
+.login-hero h1{font-size:30px;font-weight:900;color:var(--green);margin:8px 0 2px}
+.login-hero p{color:var(--muted);font-weight:600;margin:0}
+.seg{display:flex;background:#eef2ec;border-radius:12px;padding:4px;margin:16px 0}
+.seg button{flex:1;border:none;background:transparent;font-family:inherit;font-weight:800;
+  font-size:15px;padding:11px;border-radius:9px;cursor:pointer;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--green);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.codebox{letter-spacing:8px;text-align:center;font-size:24px;font-weight:800}
+.muted-note{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
+.err{color:var(--danger);font-weight:700;font-size:14px;text-align:center;margin-top:10px;min-height:18px}
+.loading{text-align:center;color:var(--muted);padding:40px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="topbar" id="topbar" style="display:none">
+  <div class="row">
+    <div class="brand">🦌 BUX <small>שירותים</small></div>
+    <div class="spacer"></div>
+    <div class="whoami" id="whoami"></div>
+    <button class="linkbtn" id="logoutBtn">יציאה</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== LOGIN ===== -->
+  <section id="loginView">
+    <div class="login-hero">
+      <div class="deer">🦌</div>
+      <h1>BUX שירותים</h1>
+      <p>רישום מפגשים אישיים במועדון</p>
+    </div>
+
+    <div class="card">
+      <div class="seg">
+        <button id="segProvider" class="on" onclick="setMode('provider')">נותן/ת שירות</button>
+        <button id="segManager" onclick="setMode('manager')">מנהל</button>
+      </div>
+
+      <!-- provider login -->
+      <div id="provLogin">
+        <label>מי את/ה?</label>
+        <select id="provSelect"><option value="">טוען...</option></select>
+        <label>הקוד האישי שלך</label>
+        <input id="provCode" class="codebox" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off">
+        <button class="btn" onclick="providerLogin()">כניסה</button>
+      </div>
+
+      <!-- manager login -->
+      <div id="mgrLogin" class="hidden">
+        <label>קוד מנהל</label>
+        <input id="mgrCode" class="codebox" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off">
+        <button class="btn gold" onclick="managerLogin()">כניסת מנהל</button>
+      </div>
+
+      <div class="err" id="loginErr"></div>
+      <div class="muted-note">הנתונים נשמרים בענן ומשותפים לכל הצוות 🦌</div>
+    </div>
+  </section>
+
+  <!-- ===== PROVIDER APP ===== -->
+  <section id="providerView" class="hidden">
+    <div class="card">
+      <h2>➕ רישום מפגש חדש</h2>
+      <div class="two">
+        <div><label>תאריך</label><input type="date" id="f_date"></div>
+        <div><label>שעת התחלה</label><input type="time" id="f_time"></div>
+      </div>
+      <div class="two">
+        <div><label>משך (דקות)</label><input type="number" id="f_dur" inputmode="numeric" min="1" step="5" placeholder="60"></div>
+        <div><label>סוג שירות</label><select id="f_type"></select></div>
+      </div>
+      <label>עם מי? (שם המתאמן/ת)</label>
+      <input id="f_client" placeholder="שם חופשי">
+      <label>הערה (לא חובה)</label>
+      <textarea id="f_note" placeholder="למשל: מפגש ראשון, התקדמות, וכו׳"></textarea>
+      <button class="btn" id="saveBtn" onclick="saveSession()">שלח רישום ✓</button>
+    </div>
+
+    <div class="card">
+      <h2>📋 המפגשים שלי</h2>
+      <div class="slist" id="myList"><div class="loading">טוען...</div></div>
+    </div>
+  </section>
+
+  <!-- ===== MANAGER APP ===== -->
+  <section id="managerView" class="hidden">
+    <div class="card">
+      <h2>📊 סיכום חודשי — כל הצוות</h2>
+      <div class="three">
+        <div>
+          <label>חודש</label>
+          <input type="month" id="m_month">
+        </div>
+        <div>
+          <label>נותן/ת שירות</label>
+          <select id="m_provider"><option value="">הכל</option></select>
+        </div>
+        <div>
+          <label>סוג שירות</label>
+          <select id="m_type"><option value="">הכל</option></select>
+        </div>
+      </div>
+      <div class="two">
+        <div><label>מתאריך</label><input type="date" id="m_from"></div>
+        <div><label>עד תאריך</label><input type="date" id="m_to"></div>
+      </div>
+      <div class="two" style="margin-top:14px">
+        <button class="btn ghost" style="margin:0" onclick="clearRange()">נקה טווח תאריכים</button>
+        <button class="btn gold" style="margin:0" onclick="exportCSV()">⬇️ ייצוא ל-CSV</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>סיכום לפי נותן/ת שירות</h3>
+      <div class="tablewrap"><table id="summaryTable"></table></div>
+      <div class="empty hidden" id="mgrEmpty">אין מפגשים לתקופה שנבחרה</div>
+    </div>
+
+    <div class="card" id="detailCard" style="display:none">
+      <h3 id="detailTitle">מפגשים מפורטים</h3>
+      <div class="slist" id="detailList"></div>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   הגדרות
+====================================================================== */
+const DB   = "https://command-center-gal-default-rtdb.europe-west1.firebasedatabase.app";
+const BASE = DB + "/bux-services";            // הענף של האפליקציה הזו
+const MANAGER_PIN = "1357";                    // קוד מנהל — אפשר לשנות כאן
+
+// סוגי שירות (מותאם לתפריט)
+const SERVICE_TYPES = ["יוגה","אימון אישי","ייעוץ תזונה","ספורטתרפיה"];
+const TYPE_COLORS = {"יוגה":"#2c6b3d","אימון אישי":"#1E4D2B","ייעוץ תזונה":"#b58900","ספורטתרפיה":"#8e44ad"};
+
+/* =====================================================================
+   חישוב תשלום — נשאיר ריק בשלב זה.
+   בהמשך נמלא לכל נותן/ת שירות סידור שונה (תעריף לשעה / למפגש / מדורג).
+   כרגע הכלי רק סופר ומרכז, בלי חישוב כספי.
+====================================================================== */
+function calcPayment(session, provider){
+  // TODO: להשלים לפי הסידור של כל נותן/ת שירות (provider.rate וכו')
+  return null;
+}
+
+/* =====================================================================
+   מצב / זיכרון
+====================================================================== */
+let PROVIDERS = {};          // {id:{name,role,active,rate,code}}
+let SESSIONS  = {};          // {key:{provider_id,date,...}}
+let AUTH = null;             // {kind:'provider'|'manager', id?, name?, role?}
+const LSKEY = "bux_services_auth";
+
+/* =====================================================================
+   שכבת ענן (Firebase RTDB REST) — רשומות נפרדות למניעת דריסה בין משתמשים
+====================================================================== */
+async function loadProviders(){
+  const r = await fetch(BASE + "/providers.json");
+  PROVIDERS = (await r.json()) || {};
+}
+async function loadSessions(){
+  const r = await fetch(BASE + "/sessions.json");
+  SESSIONS = (await r.json()) || {};
+}
+async function createSession(obj){
+  const r = await fetch(BASE + "/sessions.json", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)});
+  const j = await r.json();               // {name:"<key>"}
+  SESSIONS[j.name] = obj;
+  return j.name;
+}
+async function updateSession(key,obj){
+  await fetch(BASE + "/sessions/"+key+".json", {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)});
+  SESSIONS[key] = Object.assign({}, SESSIONS[key], obj);
+}
+async function deleteSession(key){
+  await fetch(BASE + "/sessions/"+key+".json", {method:"DELETE"});
+  delete SESSIONS[key];
+}
+
+/* =====================================================================
+   כלים
+====================================================================== */
+const $  = s => document.querySelector(s);
+const pad = n => String(n).padStart(2,"0");
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function nowTime(){const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());}
+function curMonth(){const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1);}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtDate(iso){if(!iso)return"";const [y,m,d]=iso.split("-");return d+"/"+m+"/"+y;}
+function hoursOf(mins){return (Number(mins||0)/60);}
+function fmtHours(h){const v=Math.round(h*10)/10;return (Number.isInteger(v)?v:v.toFixed(1))+" ש׳";}
+function heDay(iso){const d=new Date(iso+"T00:00");return ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"][d.getDay()];}
+
+/* =====================================================================
+   התחברות
+====================================================================== */
+function setMode(m){
+  $("#segProvider").classList.toggle("on",m==="provider");
+  $("#segManager").classList.toggle("on",m==="manager");
+  $("#provLogin").classList.toggle("hidden",m!=="provider");
+  $("#mgrLogin").classList.toggle("hidden",m!=="manager");
+  $("#loginErr").textContent="";
+}
+function fillProviderSelect(){
+  const sel=$("#provSelect");
+  const opts=Object.entries(PROVIDERS).filter(([id,p])=>p.active!==false)
+    .map(([id,p])=>`<option value="${id}">${esc(p.name)} — ${esc(p.role)}</option>`).join("");
+  sel.innerHTML = `<option value="">בחר/י שם...</option>`+opts;
+}
+function providerLogin(){
+  const id=$("#provSelect").value, code=$("#provCode").value.trim();
+  if(!id){$("#loginErr").textContent="בחר/י שם מהרשימה";return;}
+  const p=PROVIDERS[id];
+  if(!p||String(p.code)!==code){$("#loginErr").textContent="קוד אישי שגוי";return;}
+  AUTH={kind:"provider",id,name:p.name,role:p.role};
+  localStorage.setItem(LSKEY,JSON.stringify(AUTH));
+  enterApp();
+}
+function managerLogin(){
+  if($("#mgrCode").value.trim()!==MANAGER_PIN){$("#loginErr").textContent="קוד מנהל שגוי";return;}
+  AUTH={kind:"manager"};
+  localStorage.setItem(LSKEY,JSON.stringify(AUTH));
+  enterApp();
+}
+function logout(){localStorage.removeItem(LSKEY);AUTH=null;location.reload();}
+
+/* =====================================================================
+   מעבר לאפליקציה
+====================================================================== */
+async function enterApp(){
+  $("#loginView").classList.add("hidden");
+  $("#topbar").style.display="block";
+  await loadSessions();
+  if(AUTH.kind==="provider"){
+    $("#whoami").innerHTML=`<b>${esc(AUTH.name)}</b>${esc(AUTH.role)}`;
+    $("#providerView").classList.remove("hidden");
+    $("#managerView").classList.add("hidden");
+    initProviderForm();
+    renderMyList();
+  }else{
+    $("#whoami").innerHTML=`<b>מנהל</b>ניהול וסיכומים`;
+    $("#managerView").classList.remove("hidden");
+    $("#providerView").classList.add("hidden");
+    initManager();
+  }
+}
+
+/* =====================================================================
+   מסך נותן/ת שירות
+====================================================================== */
+function initProviderForm(){
+  $("#f_date").value=todayStr();
+  $("#f_time").value=nowTime();
+  $("#f_type").innerHTML=SERVICE_TYPES.map(t=>`<option>${t}</option>`).join("");
+  // ברירת מחדל: סוג השירות לפי התפקיד אם מתאים
+  if(SERVICE_TYPES.includes(AUTH.role)) $("#f_type").value=AUTH.role;
+}
+async function saveSession(){
+  const date=$("#f_date").value, time=$("#f_time").value;
+  const dur=parseInt($("#f_dur").value,10);
+  const type=$("#f_type").value, client=$("#f_client").value.trim(), note=$("#f_note").value.trim();
+  if(!date){toast("חסר תאריך");return;}
+  if(!time){toast("חסרה שעת התחלה");return;}
+  if(!dur||dur<=0){toast("הכנס/י משך בדקות");return;}
+  if(!client){toast("כתוב/י עם מי היה המפגש");return;}
+  const btn=$("#saveBtn");btn.disabled=true;btn.textContent="שומר...";
+  const obj={provider_id:AUTH.id,date,start_time:time,duration_minutes:dur,
+    service_type:type,client_name:client,note,created_at:new Date().toISOString()};
+  try{
+    await createSession(obj);
+    toast("נשמר! ✓ יום מצוין 🦌");
+    // איפוס טופס (משאירים תאריך=היום, שעה=עכשיו)
+    $("#f_dur").value="";$("#f_client").value="";$("#f_note").value="";
+    $("#f_date").value=todayStr();$("#f_time").value=nowTime();
+    renderMyList();
+  }catch(e){toast("שגיאה בשמירה, נסה/י שוב");}
+  btn.disabled=false;btn.textContent="שלח רישום ✓";
+}
+function mySessions(){
+  return Object.entries(SESSIONS).filter(([k,s])=>s.provider_id===AUTH.id)
+    .map(([k,s])=>Object.assign({_k:k},s))
+    .sort((a,b)=>(b.date+b.start_time).localeCompare(a.date+a.start_time));
+}
+function sessionCardHTML(s,{showProvider=false}={}){
+  const col=TYPE_COLORS[s.service_type]||"#1E4D2B";
+  const who=showProvider&&PROVIDERS[s.provider_id]?`<span class="chip">${esc(PROVIDERS[s.provider_id].name)}</span>`:"";
+  return `<div class="sitem" data-k="${s._k}">
+    <div class="top">
+      <span class="pill" style="background:${col}">${esc(s.service_type)}</span>
+      ${who}
+      <span class="when">${heDay(s.date)} ${fmtDate(s.date)}</span>
+    </div>
+    <div class="sub">🕐 ${esc(s.start_time)} · ${s.duration_minutes} דק׳ (${fmtHours(hoursOf(s.duration_minutes))}) · 👤 ${esc(s.client_name)}</div>
+    ${s.note?`<div class="note">${esc(s.note)}</div>`:""}
+    <div class="acts">
+      <button class="tinybtn" onclick="editSession('${s._k}')">✏️ עריכה</button>
+      <button class="tinybtn del" onclick="removeSession('${s._k}')">🗑 מחיקה</button>
+    </div>
+  </div>`;
+}
+function renderMyList(){
+  const list=mySessions();
+  const wrap=$("#myList");
+  if(!list.length){wrap.innerHTML=`<div class="empty">עדיין אין מפגשים. הרישום הראשון שלך יופיע כאן 🦌</div>`;return;}
+  wrap.innerHTML=list.map(s=>sessionCardHTML(s)).join("");
+}
+
+/* עריכה במקום (prompt פשוט — מתאים למשתמש לא טכני) */
+async function editSession(k){
+  const s=SESSIONS[k];if(!s)return;
+  const date=prompt("תאריך (YYYY-MM-DD):",s.date);if(date===null)return;
+  const time=prompt("שעת התחלה (HH:MM):",s.start_time);if(time===null)return;
+  const dur=prompt("משך בדקות:",s.duration_minutes);if(dur===null)return;
+  const type=prompt("סוג שירות ("+SERVICE_TYPES.join(" / ")+"):",s.service_type);if(type===null)return;
+  const client=prompt("עם מי:",s.client_name);if(client===null)return;
+  const note=prompt("הערה:",s.note||"");if(note===null)return;
+  await updateSession(k,{date,start_time:time,duration_minutes:parseInt(dur,10)||s.duration_minutes,
+    service_type:type.trim()||s.service_type,client_name:client.trim(),note:note.trim()});
+  toast("עודכן ✓");
+  AUTH.kind==="manager"?refreshManager():renderMyList();
+}
+async function removeSession(k){
+  if(!confirm("למחוק את המפגש? אי אפשר לשחזר."))return;
+  await deleteSession(k);
+  toast("נמחק");
+  AUTH.kind==="manager"?refreshManager():renderMyList();
+}
+
+/* =====================================================================
+   מסך מנהל
+====================================================================== */
+function initManager(){
+  $("#m_month").value=curMonth();
+  $("#m_provider").innerHTML=`<option value="">כל נותני השירות</option>`+
+    Object.entries(PROVIDERS).map(([id,p])=>`<option value="${id}">${esc(p.name)} — ${esc(p.role)}</option>`).join("");
+  $("#m_type").innerHTML=`<option value="">כל סוגי השירות</option>`+SERVICE_TYPES.map(t=>`<option>${t}</option>`).join("");
+  ["m_month","m_provider","m_type","m_from","m_to"].forEach(id=>$("#"+id).addEventListener("change",refreshManager));
+  refreshManager();
+}
+function clearRange(){$("#m_from").value="";$("#m_to").value="";refreshManager();}
+async function refreshManager(){
+  await loadSessions();          // רענון מהענן בכל שינוי סינון
+  $("#detailCard").style.display="none";
+  renderSummary();
+}
+function filteredSessions(){
+  const month=$("#m_month").value, prov=$("#m_provider").value, type=$("#m_type").value;
+  const from=$("#m_from").value, to=$("#m_to").value;
+  const useRange = from||to;
+  return Object.entries(SESSIONS).map(([k,s])=>Object.assign({_k:k},s)).filter(s=>{
+    if(!s.date)return false;
+    if(useRange){
+      if(from&&s.date<from)return false;
+      if(to&&s.date>to)return false;
+    }else if(month && s.date.slice(0,7)!==month){return false;}
+    if(prov&&s.provider_id!==prov)return false;
+    if(type&&s.service_type!==type)return false;
+    return true;
+  }).sort((a,b)=>(b.date+b.start_time).localeCompare(a.date+a.start_time));
+}
+function renderSummary(){
+  const rows=filteredSessions();
+  const tbl=$("#summaryTable");
+  if(!rows.length){tbl.innerHTML="";$("#mgrEmpty").classList.remove("hidden");return;}
+  $("#mgrEmpty").classList.add("hidden");
+  // צבירה לפי נותן שירות
+  const agg={};
+  rows.forEach(s=>{
+    const id=s.provider_id;
+    if(!agg[id])agg[id]={count:0,mins:0,byType:{}};
+    agg[id].count++;agg[id].mins+=Number(s.duration_minutes||0);
+    agg[id].byType[s.service_type]=(agg[id].byType[s.service_type]||0)+1;
+  });
+  let totC=0,totM=0;
+  const body=Object.entries(agg).sort((a,b)=>b[1].count-a[1].count).map(([id,a])=>{
+    totC+=a.count;totM+=a.mins;
+    const p=PROVIDERS[id]||{name:"(לא ידוע)",role:""};
+    const types=Object.entries(a.byType).map(([t,c])=>`<span class="chip">${esc(t)} ${c}</span>`).join(" ");
+    return `<tr class="prow" onclick="showDetail('${id}')">
+      <td><b>${esc(p.name)}</b><div class="mini">${esc(p.role)}</div></td>
+      <td>${a.count}</td>
+      <td>${fmtHours(hoursOf(a.mins))}</td>
+      <td>${types}</td>
+    </tr>`;
+  }).join("");
+  tbl.innerHTML=`<thead><tr><th>נותן/ת שירות</th><th>מפגשים</th><th>סה״כ שעות</th><th>פירוק לפי סוג</th></tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr><td>סה״כ</td><td>${totC}</td><td>${fmtHours(hoursOf(totM))}</td><td></td></tr></tfoot>`;
+}
+function showDetail(id){
+  const rows=filteredSessions().filter(s=>s.provider_id===id);
+  const p=PROVIDERS[id]||{name:""};
+  $("#detailTitle").textContent="מפגשים מפורטים — "+p.name+" ("+rows.length+")";
+  $("#detailList").innerHTML=rows.map(s=>sessionCardHTML(s,{showProvider:false})).join("")||`<div class="empty">אין</div>`;
+  $("#detailCard").style.display="block";
+  $("#detailCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* =====================================================================
+   ייצוא CSV (עם BOM לעברית תקינה באקסל)
+====================================================================== */
+function exportCSV(){
+  const rows=filteredSessions();
+  if(!rows.length){toast("אין נתונים לייצוא");return;}
+  const head=["תאריך","יום","שעת התחלה","משך (דק׳)","שעות","נותן/ת שירות","תפקיד","סוג שירות","עם מי","הערה"];
+  const csvRows=[head];
+  rows.slice().sort((a,b)=>(a.date+a.start_time).localeCompare(b.date+b.start_time)).forEach(s=>{
+    const p=PROVIDERS[s.provider_id]||{name:"",role:""};
+    csvRows.push([fmtDate(s.date),heDay(s.date),s.start_time,s.duration_minutes,
+      (hoursOf(s.duration_minutes)).toFixed(2),p.name,p.role,s.service_type,s.client_name,s.note||""]);
+  });
+  const csv=csvRows.map(r=>r.map(c=>{
+    c=(c==null?"":String(c));
+    return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;
+  }).join(",")).join("\r\n");
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const label=$("#m_from").value||$("#m_to").value?"טווח":($("#m_month").value||"הכל");
+  a.href=url;a.download="BUX-שירותים-"+label+".csv";a.click();
+  URL.revokeObjectURL(url);
+  toast("קובץ יוצא ⬇️");
+}
+
+/* =====================================================================
+   אתחול
+====================================================================== */
+$("#logoutBtn").addEventListener("click",logout);
+// אישור בלחיצת Enter בשדות קוד
+$("#provCode").addEventListener("keydown",e=>{if(e.key==="Enter")providerLogin();});
+$("#mgrCode").addEventListener("keydown",e=>{if(e.key==="Enter")managerLogin();});
+
+(async function init(){
+  try{ await loadProviders(); }catch(e){ $("#loginErr").textContent="בעיית חיבור לאינטרנט"; }
+  fillProviderSelect();
+  // כניסה אוטומטית אם כבר התחברנו במכשיר הזה
+  const saved=localStorage.getItem(LSKEY);
+  if(saved){
+    try{
+      AUTH=JSON.parse(saved);
+      if(AUTH.kind==="provider" && (!PROVIDERS[AUTH.id])) {AUTH=null;localStorage.removeItem(LSKEY);}
+      else { await enterApp(); return; }
+    }catch(e){}
+  }
+})();
+
+/* Service worker (PWA) */
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+</script>
+</body>
+</html>

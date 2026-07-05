@@ -1,0 +1,17 @@
+{
+  "name": "BUX שירותים",
+  "short_name": "BUX שירותים",
+  "description": "רישום מפגשים אישיים במועדון קרוספיט BUX",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1E4D2B",
+  "theme_color": "#1E4D2B",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
