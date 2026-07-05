@@ -136,6 +136,62 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
 .muted-note{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
 .err{color:var(--danger);font-weight:700;font-size:14px;text-align:center;margin-top:10px;min-height:18px}
 .loading{text-align:center;color:var(--muted);padding:40px;font-weight:700}
+
+/* ---- Bottom nav ---- */
+#bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#fff;
+  border-top:1px solid var(--line);box-shadow:0 -4px 18px rgba(20,58,31,.08);
+  display:none;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+#bottomnav .inner{max-width:640px;margin:0 auto;display:flex;gap:6px}
+#bottomnav button{flex:1;border:none;background:transparent;font-family:inherit;
+  font-weight:800;font-size:13px;color:var(--muted);padding:8px 4px;border-radius:12px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1}
+#bottomnav button .ic{font-size:20px}
+#bottomnav button.on{color:var(--green);background:#eef4ec}
+
+/* ---- Calendar ---- */
+.weeknav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.weeknav .nb{background:var(--green);color:#fff;border:none;font-size:20px;font-weight:900;
+  width:42px;height:42px;border-radius:12px;cursor:pointer;flex-shrink:0}
+.weeknav .lbl{flex:1;text-align:center;font-weight:800;font-size:15px;color:var(--green)}
+.weeknav .today{background:var(--yellow);color:var(--green-d);border:none;font-family:inherit;
+  font-weight:800;font-size:13px;padding:0 12px;height:42px;border-radius:12px;cursor:pointer;flex-shrink:0}
+.daystrip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:14px}
+.daystrip button{border:1.5px solid var(--line);background:#fbfdfb;border-radius:12px;padding:7px 2px;
+  font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+.daystrip .dn{font-weight:800;font-size:14px;color:var(--ink)}
+.daystrip .dd{font-size:11px;color:var(--muted);font-weight:700}
+.daystrip button.sel{background:var(--green);border-color:var(--green)}
+.daystrip button.sel .dn,.daystrip button.sel .dd{color:#fff}
+.daystrip button.tdy{border-color:var(--yellow);border-width:2px}
+.daystrip .cnt{position:absolute;top:-5px;left:-3px;background:var(--danger);color:#fff;
+  font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px}
+.daystrip button.sel .cnt{background:var(--yellow);color:var(--green-d)}
+
+.bk{background:#fff;border:1px solid var(--line);border-right:6px solid var(--green);
+  border-radius:12px;padding:11px 13px;margin-top:9px;box-shadow:0 2px 8px rgba(20,58,31,.05)}
+.bk.conflict{border-color:var(--danger);box-shadow:0 0 0 2px rgba(192,57,43,.15)}
+.bk .bt{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bk .time{font-weight:900;font-size:16px}
+.bk .nm{font-weight:800;font-size:14px}
+.bk .rep{font-size:11px;background:#eef4ec;color:var(--green);font-weight:800;padding:2px 8px;border-radius:20px}
+.bk .warn{font-size:12px;color:var(--danger);font-weight:800}
+.bk .bnote{font-size:13px;color:#3c4d42;margin-top:4px}
+.bk .acts{display:flex;gap:8px;margin-top:9px}
+.freeday{text-align:center;color:var(--green);font-weight:800;padding:26px 10px;
+  background:#eef4ec;border-radius:14px;margin-top:8px}
+
+/* ---- Modal ---- */
+.modal-bg{position:fixed;inset:0;background:rgba(10,25,15,.55);z-index:50;display:none;
+  align-items:flex-end;justify-content:center}
+.modal-bg.show{display:flex}
+.modal{background:#fff;width:100%;max-width:640px;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+  box-shadow:0 -10px 40px rgba(0,0,0,.3);max-height:92vh;overflow-y:auto}
+.modal h2{display:flex;align-items:center;justify-content:space-between}
+.modal .x{background:#f1f4f0;border:none;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;color:var(--ink)}
+.rowck{display:flex;align-items:center;gap:10px;margin-top:14px;background:#f6f9f5;padding:12px 14px;border-radius:12px}
+.rowck input{width:22px;height:22px;flex-shrink:0}
+.rowck label{margin:0}
 </style>
 </head>
 <body>
@@ -252,6 +308,53 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
     </div>
   </section>
 
+  <!-- ===== CALENDAR (shared) ===== -->
+  <section id="calendarView" class="hidden">
+    <div class="card">
+      <h2>🗓 לוח המשרד</h2>
+      <div class="weeknav">
+        <button class="nb" onclick="weekShift(-1)">›</button>
+        <div class="lbl" id="weekLbl"></div>
+        <button class="nb" onclick="weekShift(1)">‹</button>
+      </div>
+      <div style="text-align:center;margin-bottom:10px">
+        <button class="today" onclick="weekToday()">היום</button>
+      </div>
+      <div class="daystrip" id="dayStrip"></div>
+      <div id="dayBookings"></div>
+      <button class="btn" onclick="openBooking()">➕ הוסף תפיסה ליום זה</button>
+      <div class="muted-note" style="margin-top:12px">המשרד משותף — כל תפיסה חוסמת אותו לכולם. חפיפה מסומנת ב⚠️</div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav id="bottomnav"><div class="inner" id="navInner"></div></nav>
+
+<!-- ===== BOOKING MODAL ===== -->
+<div class="modal-bg" id="bkModal">
+  <div class="modal">
+    <h2><span id="bkTitle">תפיסת משרד</span><button class="x" onclick="closeBooking()">✕</button></h2>
+    <div id="bkProviderWrap">
+      <label>מי תופס/ת?</label>
+      <select id="bk_provider"></select>
+    </div>
+    <label>תאריך</label>
+    <input type="date" id="bk_date">
+    <div class="two">
+      <div><label>משעה</label><input type="time" id="bk_start"></div>
+      <div><label>עד שעה</label><input type="time" id="bk_end"></div>
+    </div>
+    <label>נושא / הערה (לא חובה)</label>
+    <input id="bk_note" placeholder="למשל: טיפול, ייעוץ, פגישה">
+    <div class="rowck">
+      <input type="checkbox" id="bk_repeat">
+      <label for="bk_repeat">חוזר כל שבוע (באותו יום ושעה)</label>
+    </div>
+    <button class="btn" id="bkSaveBtn" onclick="saveBooking()">שמור תפיסה ✓</button>
+    <button class="btn ghost" id="bkDelBtn" onclick="deleteBookingCur()" style="display:none">🗑 מחק תפיסה</button>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -281,8 +384,9 @@ function calcPayment(session, provider){
 /* =====================================================================
    מצב / זיכרון
 ====================================================================== */
-let PROVIDERS = {};          // {id:{name,role,active,rate,code}}
+let PROVIDERS = {};          // {id:{name,role,active,rate,code,color}}
 let SESSIONS  = {};          // {key:{provider_id,date,...}}
+let BOOKINGS  = {};          // {key:{provider_id,kind:'once'|'weekly',date?,weekday?,start,end,note}}
 let AUTH = null;             // {kind:'provider'|'manager', id?, name?, role?}
 const LSKEY = "bux_services_auth";
 
@@ -310,6 +414,22 @@ async function updateSession(key,obj){
 async function deleteSession(key){
   await fetch(BASE + "/sessions/"+key+".json", {method:"DELETE"});
   delete SESSIONS[key];
+}
+async function loadBookings(){
+  const r = await fetch(BASE + "/bookings.json");
+  BOOKINGS = (await r.json()) || {};
+}
+async function createBooking(obj){
+  const r = await fetch(BASE + "/bookings.json", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)});
+  const j = await r.json(); BOOKINGS[j.name]=obj; return j.name;
+}
+async function updateBooking(key,obj){
+  await fetch(BASE + "/bookings/"+key+".json", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)});
+  BOOKINGS[key]=obj;
+}
+async function deleteBooking(key){
+  await fetch(BASE + "/bookings/"+key+".json", {method:"DELETE"});
+  delete BOOKINGS[key];
 }
 
 /* =====================================================================
@@ -366,19 +486,40 @@ function logout(){localStorage.removeItem(LSKEY);AUTH=null;location.reload();}
 async function enterApp(){
   $("#loginView").classList.add("hidden");
   $("#topbar").style.display="block";
-  await loadSessions();
+  $("#bottomnav").style.display="block";
+  await Promise.all([loadSessions(), loadBookings()]);
+  buildNav();
+  initCalendar();
   if(AUTH.kind==="provider"){
     $("#whoami").innerHTML=`<b>${esc(AUTH.name)}</b>${esc(AUTH.role)}`;
-    $("#providerView").classList.remove("hidden");
-    $("#managerView").classList.add("hidden");
     initProviderForm();
     renderMyList();
+    showTab("log");
   }else{
     $("#whoami").innerHTML=`<b>מנהל</b>ניהול וסיכומים`;
-    $("#managerView").classList.remove("hidden");
-    $("#providerView").classList.add("hidden");
     initManager();
+    showTab("summary");
   }
+}
+
+/* ניווט תחתון בין טאבים */
+const TABS={
+  log:{label:"רישום",ic:"📝",sec:"providerView"},
+  summary:{label:"סיכום",ic:"📊",sec:"managerView"},
+  calendar:{label:"לוח המשרד",ic:"🗓️",sec:"calendarView"},
+};
+function buildNav(){
+  const items = AUTH.kind==="provider" ? ["log","calendar"] : ["summary","calendar"];
+  $("#navInner").innerHTML = items.map(k=>
+    `<button data-tab="${k}" onclick="showTab('${k}')"><span class="ic">${TABS[k].ic}</span>${TABS[k].label}</button>`).join("");
+}
+function showTab(name){
+  ["providerView","managerView","calendarView"].forEach(s=>$("#"+s).classList.add("hidden"));
+  $("#"+TABS[name].sec).classList.remove("hidden");
+  [...document.querySelectorAll("#navInner button")].forEach(b=>b.classList.toggle("on",b.dataset.tab===name));
+  if(name==="calendar"){ loadBookings().then(renderCalendar); }
+  if(name==="summary"){ refreshManager(); }
+  window.scrollTo(0,0);
 }
 
 /* =====================================================================
@@ -556,6 +697,132 @@ function exportCSV(){
   a.href=url;a.download="BUX-שירותים-"+label+".csv";a.click();
   URL.revokeObjectURL(url);
   toast("קובץ יוצא ⬇️");
+}
+
+/* =====================================================================
+   לוח המשרד (מרחב אחד משותף) — תפיסות חד-פעמיות + חוזרות שבועית
+====================================================================== */
+const HE_DAYS_S=["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
+let CAL_WEEK=null;   // תאריך = יום ראשון של השבוע המוצג
+let CAL_SEL=null;    // התאריך הנבחר (iso)
+let BK_EDIT=null;    // מפתח תפיסה בעריכה
+
+function startOfWeek(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-x.getDay());return x;}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function dISO(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function t2m(t){const [h,m]=t.split(":").map(Number);return h*60+m;}
+
+function initCalendar(){CAL_WEEK=startOfWeek(new Date());CAL_SEL=dISO(new Date());}
+function weekShift(n){CAL_WEEK=addDays(CAL_WEEK,7*n);CAL_SEL=dISO(CAL_WEEK);renderCalendar();}
+function weekToday(){CAL_WEEK=startOfWeek(new Date());CAL_SEL=dISO(new Date());renderCalendar();}
+function selectDay(iso){CAL_SEL=iso;renderCalendar();}
+
+function bookingsForDate(iso){
+  const wd=new Date(iso+"T00:00").getDay();
+  return Object.entries(BOOKINGS).map(([k,b])=>Object.assign({_k:k},b)).filter(b=>{
+    if(b.kind==="weekly")return b.weekday===wd;
+    return b.date===iso;
+  }).sort((a,b)=>a.start.localeCompare(b.start));
+}
+function markConflicts(list){
+  list.forEach(x=>x._conflict=false);
+  for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
+    if(t2m(list[i].start)<t2m(list[j].end)&&t2m(list[j].start)<t2m(list[i].end)){
+      list[i]._conflict=true;list[j]._conflict=true;
+    }
+  }
+  return list;
+}
+function renderCalendar(){
+  const wStart=CAL_WEEK,wEnd=addDays(CAL_WEEK,6);
+  $("#weekLbl").textContent=fmtDate(dISO(wStart))+" – "+fmtDate(dISO(wEnd));
+  const todayIso=dISO(new Date());
+  let strip="";
+  for(let i=0;i<7;i++){
+    const d=addDays(CAL_WEEK,i),iso=dISO(d),cnt=bookingsForDate(iso).length;
+    strip+=`<button class="${iso===CAL_SEL?'sel':''} ${iso===todayIso?'tdy':''}" onclick="selectDay('${iso}')">
+      ${cnt?`<span class="cnt">${cnt}</span>`:''}
+      <span class="dn">${HE_DAYS_S[i]}</span><span class="dd">${d.getDate()}/${d.getMonth()+1}</span></button>`;
+  }
+  $("#dayStrip").innerHTML=strip;
+  renderDayBookings();
+}
+function renderDayBookings(){
+  const list=markConflicts(bookingsForDate(CAL_SEL));
+  const wrap=$("#dayBookings");
+  if(!list.length){wrap.innerHTML=`<div class="freeday">אין תפיסות ביום זה — המשרד פנוי ✅</div>`;return;}
+  wrap.innerHTML=list.map(b=>{
+    const p=PROVIDERS[b.provider_id]||{name:"(לא ידוע)",color:"#1E4D2B"};
+    const col=p.color||"#1E4D2B";
+    const canEdit=AUTH.kind==="manager"||b.provider_id===AUTH.id;
+    return `<div class="bk ${b._conflict?'conflict':''}" style="border-right-color:${col}">
+      <div class="bt">
+        <span class="time">${b.start}–${b.end}</span>
+        <span class="nm" style="color:${col}">${esc(p.name)}</span>
+        ${b.kind==="weekly"?`<span class="rep">↻ כל שבוע</span>`:''}
+        ${b._conflict?`<span class="warn">⚠️ חפיפה</span>`:''}
+      </div>
+      ${b.note?`<div class="bnote">${esc(b.note)}</div>`:''}
+      ${canEdit?`<div class="acts"><button class="tinybtn" onclick="openBooking('${b._k}')">✏️ עריכה</button>
+        <button class="tinybtn del" onclick="quickDelBooking('${b._k}')">🗑 מחיקה</button></div>`:''}
+    </div>`;
+  }).join("");
+}
+
+/* חלון הוספה/עריכה */
+function openBooking(key){
+  BK_EDIT=(typeof key==="string")?key:null;
+  const provWrap=$("#bkProviderWrap"),provSel=$("#bk_provider");
+  provSel.innerHTML=Object.entries(PROVIDERS).map(([id,p])=>`<option value="${id}">${esc(p.name)} — ${esc(p.role)}</option>`).join("");
+  provWrap.style.display=AUTH.kind==="manager"?"block":"none";
+  if(BK_EDIT){
+    const b=BOOKINGS[BK_EDIT];
+    $("#bkTitle").textContent="עריכת תפיסה";
+    provSel.value=b.provider_id;
+    $("#bk_date").value=b.kind==="weekly"?nextDateForWeekday(b.weekday):b.date;
+    $("#bk_start").value=b.start;$("#bk_end").value=b.end;$("#bk_note").value=b.note||"";
+    $("#bk_repeat").checked=b.kind==="weekly";
+    $("#bkDelBtn").style.display="block";
+  }else{
+    $("#bkTitle").textContent="תפיסת משרד חדשה";
+    if(AUTH.kind==="provider")provSel.value=AUTH.id;
+    $("#bk_date").value=CAL_SEL;$("#bk_start").value="";$("#bk_end").value="";$("#bk_note").value="";
+    $("#bk_repeat").checked=false;
+    $("#bkDelBtn").style.display="none";
+  }
+  $("#bkModal").classList.add("show");
+}
+function closeBooking(){$("#bkModal").classList.remove("show");BK_EDIT=null;}
+function nextDateForWeekday(wd){for(let i=0;i<7;i++){const d=addDays(CAL_WEEK,i);if(d.getDay()===wd)return dISO(d);}return CAL_SEL;}
+async function saveBooking(){
+  const date=$("#bk_date").value,start=$("#bk_start").value,end=$("#bk_end").value;
+  const note=$("#bk_note").value.trim(),repeat=$("#bk_repeat").checked;
+  const provider_id=AUTH.kind==="provider"?AUTH.id:$("#bk_provider").value;
+  if(!date){toast("בחר/י תאריך");return;}
+  if(!start||!end){toast("בחר/י שעת התחלה וסיום");return;}
+  if(t2m(end)<=t2m(start)){toast("שעת הסיום חייבת להיות אחרי ההתחלה");return;}
+  const wd=new Date(date+"T00:00").getDay();
+  const obj=repeat
+    ?{provider_id,kind:"weekly",weekday:wd,start,end,note,created_at:new Date().toISOString()}
+    :{provider_id,kind:"once",date,start,end,note,created_at:new Date().toISOString()};
+  const btn=$("#bkSaveBtn");btn.disabled=true;btn.textContent="שומר...";
+  try{
+    if(BK_EDIT)await updateBooking(BK_EDIT,obj);else await createBooking(obj);
+    const sd=startOfWeek(new Date(date+"T00:00"));
+    if(dISO(sd)!==dISO(CAL_WEEK))CAL_WEEK=sd;
+    if(!repeat)CAL_SEL=date;
+    toast("נשמר ✓");closeBooking();renderCalendar();
+  }catch(e){toast("שגיאה בשמירה, נסה/י שוב");}
+  btn.disabled=false;btn.textContent="שמור תפיסה ✓";
+}
+async function deleteBookingCur(){
+  if(!BK_EDIT)return;
+  if(!confirm("למחוק את התפיסה?"))return;
+  await deleteBooking(BK_EDIT);toast("נמחק");closeBooking();renderCalendar();
+}
+async function quickDelBooking(key){
+  if(!confirm("למחוק את התפיסה?"))return;
+  await deleteBooking(key);toast("נמחק");renderCalendar();
 }
 
 /* =====================================================================
