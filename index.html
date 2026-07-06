@@ -213,40 +213,22 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
     <div class="login-hero">
       <div class="deer">🦌</div>
       <h1>BUX שירותים</h1>
-      <p>רישום מפגשים אישיים במועדון</p>
+      <p>לוח ורישום הפעילות במשרד</p>
     </div>
 
     <div class="card">
-      <div class="seg">
-        <button id="segProvider" class="on" onclick="setMode('provider')">נותן/ת שירות</button>
-        <button id="segManager" onclick="setMode('manager')">מנהל</button>
-      </div>
-
-      <!-- provider login -->
-      <div id="provLogin">
-        <label>מי את/ה?</label>
-        <select id="provSelect"><option value="">טוען...</option></select>
-        <label>הקוד האישי שלך</label>
-        <input id="provCode" class="codebox" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off">
-        <button class="btn" onclick="providerLogin()">כניסה</button>
-      </div>
-
-      <!-- manager login -->
-      <div id="mgrLogin" class="hidden">
-        <label>קוד מנהל</label>
-        <input id="mgrCode" class="codebox" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off">
-        <button class="btn gold" onclick="managerLogin()">כניסת מנהל</button>
-      </div>
-
+      <label>מי את/ה?</label>
+      <select id="provSelect"><option value="">טוען...</option></select>
+      <button class="btn" onclick="providerLogin()">כניסה →</button>
       <div class="err" id="loginErr"></div>
-      <div class="muted-note">הנתונים נשמרים בענן ומשותפים לכל הצוות 🦌</div>
+      <div class="muted-note">בלי קודים, פתוח וחופשי — כולם רואים את כולם 🦌</div>
     </div>
   </section>
 
   <!-- ===== PROVIDER APP ===== -->
   <section id="providerView" class="hidden">
     <div class="card">
-      <h2>➕ רישום מפגש חדש</h2>
+      <h2>➕ רישום פעילות</h2>
       <div class="two">
         <div><label>תאריך</label><input type="date" id="f_date"></div>
         <div><label>שעת התחלה</label><input type="time" id="f_time"></div>
@@ -265,7 +247,7 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
     </div>
 
     <div class="card">
-      <h2>📋 המפגשים שלי</h2>
+      <h2>📋 רישומים אחרונים</h2>
       <div class="slist" id="myList"><div class="loading">טוען...</div></div>
     </div>
   </section>
@@ -367,13 +349,11 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
 ====================================================================== */
 const DB   = "https://command-center-gal-default-rtdb.europe-west1.firebasedatabase.app";
 const BASE = DB + "/bux-services";            // הענף של האפליקציה הזו
-const MANAGER_PIN = "1357";                    // קוד מנהל — אפשר לשנות כאן
-
-// סוגי שירות (מותאם לתפריט)
-const SERVICE_TYPES = ["יוגה","אימון אישי","ייעוץ תזונה","ספורטתרפיה","עבודות משרד"];
-const TYPE_COLORS = {"יוגה":"#2c6b3d","אימון אישי":"#c0392b","ייעוץ תזונה":"#b58900","ספורטתרפיה":"#2980b9","עבודות משרד":"#8e44ad"};
-// סוגי שירות שאין בהם "עם מי" (מתאמן/ת) — עבודה עצמאית במשרד
-const NO_CLIENT_TYPES = ["עבודות משרד"];
+// סוגי הפעילות במשרד (אפשר לשנות/להוסיף כאן)
+const SERVICE_TYPES = ["ישיבת צוות","צילומי תוכן","ייעוצי תזונה","טיפולי ספורטרפיה","עבודה משרדית"];
+const TYPE_COLORS = {"ישיבת צוות":"#1E4D2B","צילומי תוכן":"#c0392b","ייעוצי תזונה":"#b58900","טיפולי ספורטרפיה":"#2980b9","עבודה משרדית":"#8e44ad"};
+// סוגי פעילות שאין בהם "עם מי" (אין מטופל ספציפי)
+const NO_CLIENT_TYPES = ["ישיבת צוות","צילומי תוכן","עבודה משרדית"];
 
 /* =====================================================================
    חישוב תשלום — נשאיר ריק בשלב זה.
@@ -454,13 +434,6 @@ function heDay(iso){const d=new Date(iso+"T00:00");return ["א׳","ב׳","ג׳",
 /* =====================================================================
    התחברות
 ====================================================================== */
-function setMode(m){
-  $("#segProvider").classList.toggle("on",m==="provider");
-  $("#segManager").classList.toggle("on",m==="manager");
-  $("#provLogin").classList.toggle("hidden",m!=="provider");
-  $("#mgrLogin").classList.toggle("hidden",m!=="manager");
-  $("#loginErr").textContent="";
-}
 function fillProviderSelect(){
   const sel=$("#provSelect");
   const opts=Object.entries(PROVIDERS).filter(([id,p])=>p.active!==false)
@@ -468,17 +441,10 @@ function fillProviderSelect(){
   sel.innerHTML = `<option value="">בחר/י שם...</option>`+opts;
 }
 function providerLogin(){
-  const id=$("#provSelect").value, code=$("#provCode").value.trim();
+  const id=$("#provSelect").value;
   if(!id){$("#loginErr").textContent="בחר/י שם מהרשימה";return;}
   const p=PROVIDERS[id];
-  if(!p||String(p.code)!==code){$("#loginErr").textContent="קוד אישי שגוי";return;}
-  AUTH={kind:"provider",id,name:p.name,role:p.role};
-  localStorage.setItem(LSKEY,JSON.stringify(AUTH));
-  enterApp();
-}
-function managerLogin(){
-  if($("#mgrCode").value.trim()!==MANAGER_PIN){$("#loginErr").textContent="קוד מנהל שגוי";return;}
-  AUTH={kind:"manager"};
+  AUTH={id,name:p.name,role:p.role,color:p.color};
   localStorage.setItem(LSKEY,JSON.stringify(AUTH));
   enterApp();
 }
@@ -494,26 +460,21 @@ async function enterApp(){
   await Promise.all([loadSessions(), loadBookings()]);
   buildNav();
   initCalendar();
-  if(AUTH.kind==="provider"){
-    $("#whoami").innerHTML=`<b>${esc(AUTH.name)}</b>${esc(AUTH.role)}`;
-    initProviderForm();
-    renderMyList();
-    showTab("log");
-  }else{
-    $("#whoami").innerHTML=`<b>מנהל</b>ניהול וסיכומים`;
-    initManager();
-    showTab("summary");
-  }
+  $("#whoami").innerHTML=`<b>${esc(AUTH.name)}</b>${esc(AUTH.role||"")}`;
+  initProviderForm();
+  initManager();
+  renderMyList();
+  showTab("log");
 }
 
-/* ניווט תחתון בין טאבים */
+/* ניווט תחתון בין טאבים — הכל פתוח לכולם */
 const TABS={
   log:{label:"רישום",ic:"📝",sec:"providerView"},
-  summary:{label:"סיכום",ic:"📊",sec:"managerView"},
   calendar:{label:"לוח המשרד",ic:"🗓️",sec:"calendarView"},
+  summary:{label:"סיכום",ic:"📊",sec:"managerView"},
 };
 function buildNav(){
-  const items = AUTH.kind==="provider" ? ["log","calendar"] : ["summary","calendar"];
+  const items = ["log","calendar","summary"];
   $("#navInner").innerHTML = items.map(k=>
     `<button data-tab="${k}" onclick="showTab('${k}')"><span class="ic">${TABS[k].ic}</span>${TABS[k].label}</button>`).join("");
 }
@@ -577,7 +538,8 @@ async function saveSession(){
   btn.disabled=false;btn.textContent="שלח רישום ✓";
 }
 function mySessions(){
-  return Object.entries(SESSIONS).filter(([k,s])=>s.provider_id===AUTH.id)
+  // פתוח — כולם רואים את כל הרישומים
+  return Object.entries(SESSIONS)
     .map(([k,s])=>Object.assign({_k:k},s))
     .sort((a,b)=>(b.date+b.start_time).localeCompare(a.date+a.start_time));
 }
@@ -590,7 +552,7 @@ function sessionCardHTML(s,{showProvider=false}={}){
       ${who}
       <span class="when">${heDay(s.date)} ${fmtDate(s.date)}</span>
     </div>
-    <div class="sub">🕐 ${esc(s.start_time)} · ${s.duration_minutes} דק׳ (${fmtHours(hoursOf(s.duration_minutes))}) · 👤 ${esc(s.client_name)}</div>
+    <div class="sub">🕐 ${esc(s.start_time)} · ${s.duration_minutes} דק׳ (${fmtHours(hoursOf(s.duration_minutes))})${s.client_name?` · 👤 ${esc(s.client_name)}`:""}</div>
     ${s.note?`<div class="note">${esc(s.note)}</div>`:""}
     <div class="acts">
       <button class="tinybtn" onclick="editSession('${s._k}')">✏️ עריכה</button>
@@ -601,8 +563,8 @@ function sessionCardHTML(s,{showProvider=false}={}){
 function renderMyList(){
   const list=mySessions();
   const wrap=$("#myList");
-  if(!list.length){wrap.innerHTML=`<div class="empty">עדיין אין מפגשים. הרישום הראשון שלך יופיע כאן 🦌</div>`;return;}
-  wrap.innerHTML=list.map(s=>sessionCardHTML(s)).join("");
+  if(!list.length){wrap.innerHTML=`<div class="empty">עדיין אין רישומים. הרישום הראשון יופיע כאן 🦌</div>`;return;}
+  wrap.innerHTML=list.map(s=>sessionCardHTML(s,{showProvider:true})).join("");
 }
 
 /* עריכה במקום (prompt פשוט — מתאים למשתמש לא טכני) */
@@ -789,7 +751,7 @@ function renderDayBookings(){
   wrap.innerHTML=list.map(b=>{
     const p=PROVIDERS[b.provider_id]||{name:"(לא ידוע)",color:"#1E4D2B"};
     const col=p.color||"#1E4D2B";
-    const canEdit=AUTH.kind==="manager"||b.provider_id===AUTH.id;
+    const canEdit=true; // פתוח — כל אחד יכול לערוך/למחוק
     const isSession=b._src==="session";
     const tag=isSession
       ? `<span class="rep" style="background:#eaf3ea;color:#1E4D2B">📝 מפגש</span>`
@@ -813,9 +775,8 @@ function renderDayBookings(){
 /* חלון הוספה/עריכה */
 function openBooking(key){
   BK_EDIT=(typeof key==="string")?key:null;
-  const provWrap=$("#bkProviderWrap"),provSel=$("#bk_provider");
+  const provSel=$("#bk_provider");
   provSel.innerHTML=Object.entries(PROVIDERS).map(([id,p])=>`<option value="${id}">${esc(p.name)} — ${esc(p.role)}</option>`).join("");
-  provWrap.style.display=AUTH.kind==="manager"?"block":"none";
   if(BK_EDIT){
     const b=BOOKINGS[BK_EDIT];
     $("#bkTitle").textContent="עריכת תפיסה";
@@ -826,7 +787,7 @@ function openBooking(key){
     $("#bkDelBtn").style.display="block";
   }else{
     $("#bkTitle").textContent="תפיסת משרד חדשה";
-    if(AUTH.kind==="provider")provSel.value=AUTH.id;
+    provSel.value=AUTH.id;
     $("#bk_date").value=CAL_SEL;$("#bk_start").value="";$("#bk_end").value="";$("#bk_note").value="";
     $("#bk_repeat").checked=false;
     $("#bkDelBtn").style.display="none";
@@ -838,7 +799,7 @@ function nextDateForWeekday(wd){for(let i=0;i<7;i++){const d=addDays(CAL_WEEK,i)
 async function saveBooking(){
   const date=$("#bk_date").value,start=$("#bk_start").value,end=$("#bk_end").value;
   const note=$("#bk_note").value.trim(),repeat=$("#bk_repeat").checked;
-  const provider_id=AUTH.kind==="provider"?AUTH.id:$("#bk_provider").value;
+  const provider_id=$("#bk_provider").value||AUTH.id;
   if(!date){toast("בחר/י תאריך");return;}
   if(!start||!end){toast("בחר/י שעת התחלה וסיום");return;}
   if(t2m(end)<=t2m(start)){toast("שעת הסיום חייבת להיות אחרי ההתחלה");return;}
@@ -870,19 +831,16 @@ async function quickDelBooking(key){
    אתחול
 ====================================================================== */
 $("#logoutBtn").addEventListener("click",logout);
-// אישור בלחיצת Enter בשדות קוד
-$("#provCode").addEventListener("keydown",e=>{if(e.key==="Enter")providerLogin();});
-$("#mgrCode").addEventListener("keydown",e=>{if(e.key==="Enter")managerLogin();});
 
 (async function init(){
   try{ await loadProviders(); }catch(e){ $("#loginErr").textContent="בעיית חיבור לאינטרנט"; }
   fillProviderSelect();
-  // כניסה אוטומטית אם כבר התחברנו במכשיר הזה
+  // כניסה אוטומטית אם כבר נכנסנו במכשיר הזה
   const saved=localStorage.getItem(LSKEY);
   if(saved){
     try{
       AUTH=JSON.parse(saved);
-      if(AUTH.kind==="provider" && (!PROVIDERS[AUTH.id])) {AUTH=null;localStorage.removeItem(LSKEY);}
+      if(!AUTH || !AUTH.id || !PROVIDERS[AUTH.id]) {AUTH=null;localStorage.removeItem(LSKEY);}
       else { await enterApp(); return; }
     }catch(e){}
   }
