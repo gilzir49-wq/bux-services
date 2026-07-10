@@ -202,6 +202,7 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
     <div class="brand">🦌 BUX <small>שירותים</small></div>
     <div class="spacer"></div>
     <div class="whoami" id="whoami"></div>
+    <button class="linkbtn" id="emailBtn" title="המייל שלי לקבלת התראות">✉️</button>
     <button class="linkbtn" id="logoutBtn">יציאה</button>
   </div>
 </header>
@@ -341,6 +342,16 @@ tfoot td{font-weight:900;background:#f3f6f2;color:var(--green)}
   </div>
 </div>
 
+<!-- ===== NOTIFY MODAL ===== -->
+<div class="modal-bg" id="notifyModal">
+  <div class="modal">
+    <h2><span>📧 לשלוח התראה לצוות?</span><button class="x" onclick="closeNotify()">✕</button></h2>
+    <div id="notifyBody"></div>
+    <a class="btn" id="notifySend" href="#" onclick="setTimeout(closeNotify,300)">📧 שלח מייל לצוות</a>
+    <button class="btn ghost" onclick="closeNotify()">דלג, בלי מייל</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -465,6 +476,9 @@ async function enterApp(){
   initManager();
   renderMyList();
   showTab("log");
+  // רמז עדין: מי שאין לו מייל שמור — שיזין כדי לקבל התראות מהצוות
+  if(PROVIDERS[AUTH.id] && !PROVIDERS[AUTH.id].email)
+    setTimeout(()=>toast("טיפ: הזן/י מייל בכפתור ✉️ למעלה כדי לקבל התראות 📧"),1400);
 }
 
 /* ניווט תחתון בין טאבים — הכל פתוח לכולם */
@@ -807,6 +821,7 @@ async function saveBooking(){
   const obj=repeat
     ?{provider_id,kind:"weekly",weekday:wd,start,end,note,created_at:new Date().toISOString()}
     :{provider_id,kind:"once",date,start,end,note,created_at:new Date().toISOString()};
+  const wasNew=!BK_EDIT;
   const btn=$("#bkSaveBtn");btn.disabled=true;btn.textContent="שומר...";
   try{
     if(BK_EDIT)await updateBooking(BK_EDIT,obj);else await createBooking(obj);
@@ -814,6 +829,7 @@ async function saveBooking(){
     if(dISO(sd)!==dISO(CAL_WEEK))CAL_WEEK=sd;
     if(!repeat)CAL_SEL=date;
     toast("נשמר ✓");closeBooking();renderCalendar();
+    if(wasNew) offerNotify(obj);   // מציע לשלוח מייל לצוות רק על תפיסה חדשה
   }catch(e){toast("שגיאה בשמירה, נסה/י שוב");}
   btn.disabled=false;btn.textContent="שמור תפיסה ✓";
 }
@@ -828,9 +844,68 @@ async function quickDelBooking(key){
 }
 
 /* =====================================================================
+   התראות מייל + הוספה ליומן (בלי שרת — פותח את אפליקציית המייל של הטלפון)
+====================================================================== */
+const HE_DAYS_FULL=["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+function heDayFull(iso){return HE_DAYS_FULL[new Date(iso+"T00:00").getDay()];}
+function stamp(iso,hhmm){return iso.replace(/-/g,"")+"T"+hhmm.replace(":","")+"00";}
+function nextOccurrenceOfWeekday(wd){
+  const t=new Date();t.setHours(0,0,0,0);
+  for(let i=0;i<7;i++){const d=addDays(t,i);if(d.getDay()===wd)return dISO(d);}
+  return dISO(t);
+}
+function gcalUrl(b,startIso,title,details){
+  const p=new URLSearchParams();
+  p.set("action","TEMPLATE");p.set("text",title);
+  p.set("dates",stamp(startIso,b.start)+"/"+stamp(startIso,b.end));
+  p.set("details",details);p.set("ctz","Asia/Jerusalem");
+  if(b.kind==="weekly")p.set("recur","RRULE:FREQ=WEEKLY");
+  return "https://calendar.google.com/calendar/render?"+p.toString();
+}
+// שמירת/עדכון המייל האישי (שירות עצמי — כל אחד למכשיר שלו)
+async function setMyEmail(){
+  const cur=(PROVIDERS[AUTH.id]&&PROVIDERS[AUTH.id].email)||"";
+  const v=prompt("המייל שלך לקבלת התראות מהצוות:",cur);
+  if(v===null)return;
+  const email=v.trim();
+  await fetch(BASE+"/providers/"+AUTH.id+"/email.json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(email)});
+  PROVIDERS[AUTH.id].email=email;
+  toast(email?"המייל נשמר ✓":"המייל נמחק");
+}
+// אחרי שמירת תפיסה — מציע לשלוח מייל לשאר הצוות (עם כפתור הוספה ליומן)
+function offerNotify(b){
+  const creator=PROVIDERS[b.provider_id]||{name:""};
+  const startIso=b.kind==="weekly"?nextOccurrenceOfWeekday(b.weekday):b.date;
+  const others=Object.entries(PROVIDERS).filter(([id,p])=>id!==b.provider_id && p.active!==false);
+  const withMail=others.filter(([id,p])=>p.email);
+  const noMail=others.filter(([id,p])=>!p.email);
+  const when=`${heDayFull(startIso)} ${fmtDate(startIso)} · ${b.start}–${b.end}`+(b.kind==="weekly"?" (חוזר כל שבוע)":"");
+  const title=`משרד תפוס — ${creator.name}`+(b.note?` (${b.note})`:"");
+  const details=`${creator.name} תפס/ה את המשרד.\n${when}`+(b.note?`\n${b.note}`:"");
+  const gcal=gcalUrl(b,startIso,title,details);
+  const subject=`תפיסת משרד — ${creator.name} · ${fmtDate(startIso)} ${b.start}–${b.end}`;
+  const body=`היי,\n${creator.name} תפס/ה את המשרד:\n📅 ${when}`+(b.note?`\n📝 ${b.note}`:"")+`\n\n➕ הוספה ליומן:\n${gcal}\n\n— נשלח מ־BUX שירותים 🦌`;
+  const mailto=`mailto:${withMail.map(([id,p])=>encodeURIComponent(p.email)).join(",")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const names=n=>n.map(([id,p])=>esc(p.name)).join(", ");
+  let html=`<div class="bnote" style="font-size:14px;background:#f6f9f5;padding:12px;border-radius:12px">📅 <b>${esc(when)}</b><br>${esc(title)}</div>`;
+  if(withMail.length){
+    html+=`<p style="margin:12px 0 4px;font-weight:700">יישלח אל: ${names(withMail)}</p>`;
+    $("#notifySend").href=mailto;$("#notifySend").style.display="block";
+  }else{
+    html+=`<p style="margin:12px 0 4px;color:var(--danger);font-weight:700">עדיין אין כתובות מייל לצוות. כל אחד יכול להזין את המייל שלו בכפתור ✉️ למעלה.</p>`;
+    $("#notifySend").style.display="none";
+  }
+  if(noMail.length) html+=`<p class="muted-note" style="margin-top:6px;text-align:right">בלי מייל (לא יקבלו): ${names(noMail)}</p>`;
+  $("#notifyBody").innerHTML=html;
+  $("#notifyModal").classList.add("show");
+}
+function closeNotify(){$("#notifyModal").classList.remove("show");}
+
+/* =====================================================================
    אתחול
 ====================================================================== */
 $("#logoutBtn").addEventListener("click",logout);
+$("#emailBtn").addEventListener("click",setMyEmail);
 
 (async function init(){
   try{ await loadProviders(); }catch(e){ $("#loginErr").textContent="בעיית חיבור לאינטרנט"; }
