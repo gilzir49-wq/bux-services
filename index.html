@@ -476,9 +476,11 @@ async function enterApp(){
   initManager();
   renderMyList();
   showTab("log");
-  // רמז עדין: מי שאין לו מייל שמור — שיזין כדי לקבל התראות מהצוות
-  if(PROVIDERS[AUTH.id] && !PROVIDERS[AUTH.id].email)
-    setTimeout(()=>toast("טיפ: הזן/י מייל בכפתור ✉️ למעלה כדי לקבל התראות 📧"),1400);
+  // כניסה ראשונה בלי מייל — שואלים פעם אחת (נזכר במכשיר, לא מציק שוב)
+  if(PROVIDERS[AUTH.id] && !PROVIDERS[AUTH.id].email && !localStorage.getItem("bux_email_asked")){
+    localStorage.setItem("bux_email_asked","1");
+    setTimeout(setMyEmail,900);
+  }
 }
 
 /* ניווט תחתון בין טאבים — הכל פתוח לכולם */
